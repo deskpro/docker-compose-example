@@ -1,0 +1,184 @@
+version: '3.8'
+services:
+  #####################################################################
+  # Init - These are used when setting up the stack for the first time.
+  #        You can remove these services once done.
+  #####################################################################
+
+  # Usage: docker-compose run -it --rm init
+  init:
+    image: php:latest
+    #command: sh -c 'cp /project/config/init.php /tmp/init.php && rm /project/config/init.php && php /tmp/init.php /project'
+    command: sh -c 'cp /project/config/init.php /tmp/init.php && php /tmp/init.php /project'
+    volumes:
+      - ./:/project
+    profiles:
+      - init
+
+  #####################################################################
+  # Deskpro services
+  #####################################################################
+
+  deskpro_web:
+    image: ${DESKPRO_IMAGE:-scratch}
+    env_file:
+      - .env
+      - config/config.env
+    environment:
+      - CONTAINER_NAME=web
+    secrets:
+      - DESKPRO_DB_PASS
+      - DESKPRO_APP_KEY
+    volumes:
+      - ./data/deskpro:/deskpro
+    restart: unless-stopped
+    command: web
+    ports:
+      - ${HTTP_USER_SET_HTTP_PORT:-80}:80
+      - ${HTTP_USER_SET_HTTPS_PORT:-80}:443
+    depends_on:
+      - mysql
+      - elastic
+    profiles:
+      - deskpro
+
+  deskpro_tasks:
+    image: ${DESKPRO_IMAGE:-scratch}
+    container_name: deskpro_tasks
+    env_file:
+      - .env
+      - config/config.env
+    environment:
+      - CONTAINER_NAME=tasks
+    secrets:
+      - DESKPRO_DB_PASS
+      - DESKPRO_APP_KEY
+    volumes:
+      - ./data/deskpro:/deskpro
+    restart: unless-stopped
+    command: tasks
+    depends_on:
+      - mysql
+      - elastic
+    profiles:
+      - deskpro
+
+  #####################################################################
+  # Standard Deskpro tools and common commands
+  #####################################################################
+
+  # Usage: docker-compose run -it --rm deskpro_bash
+  #
+  # Get a bash shell within the Deskpro environment. You can use this
+  # to run CLI commands and other tools.
+  deskpro_bash:
+    image: ${DESKPRO_IMAGE:-scratch}
+    env_file:
+      - .env
+      - config/config.env
+    environment:
+      - CONTAINER_NAME=bash
+    secrets:
+      - DESKPRO_DB_PASS
+      - DESKPRO_APP_KEY
+    volumes:
+      - ./data/deskpro:/deskpro
+      - ./data/backups:/backups
+    command: bash
+    depends_on:
+      - mysql
+      - elastic
+    profiles:
+      - tools
+
+  # Usage: docker-compose run -it --rm deskpro_run_migrations
+  #
+  # Whenever you update DPVERSION, you should run migrations
+  # to update your database to latest schema.
+  # (Always backup your database first!)
+  deskpro_run_migrations:
+    image: ${DESKPRO_IMAGE:-scratch}
+    env_file:
+      - .env
+      - config/config.env
+    environment:
+      - CONTAINER_NAME=migrations
+    secrets:
+      - DESKPRO_DB_PASS
+      - DESKPRO_APP_KEY
+    volumes:
+      - ./data/deskpro:/deskpro
+    command: exec tools/migrations/artisan migrations:exec -vvv --run
+    depends_on:
+      - mysql
+      - elastic
+    profiles:
+      - tools
+
+  # Usage: docker-compose run -it --rm mysql_make_dump
+  #
+  # Running this will dump your database to disk in the backups/ directory.
+  mysql_make_dump:
+    image: ${DESKPRO_IMAGE:-scratch}
+    env_file:
+      - .env
+      - config/config.env
+    environment:
+      - CONTAINER_NAME=dump
+    secrets:
+      - DESKPRO_DB_PASS
+      - DESKPRO_APP_KEY
+    volumes:
+      - ./data/deskpro:/deskpro
+      - ./backups:/backups
+    command: exec sh -c "mysqldump-primary --hex-blob --lock-tables=false --single-transaction | gzip > db-backup.$(date -u '+%Y%m%d.%H%M%S').sql.gz"
+    depends_on:
+      - mysql
+    profiles:
+      - tools
+
+  #####################################################################
+  # Services Deskpro requires
+  #####################################################################
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    volumes:
+      - ./data/mysql-data:/var/lib/mysql
+    env_file:
+      - config/config.env
+      - config/mysql.env
+    secrets:
+      - DESKPRO_DB_PASS
+      - MYSQL_ROOT_PASSWORD
+    profiles:
+      - services
+
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
+    restart: unless-stopped
+    env_file:
+      - config/elastic.env
+    mem_limit: 2g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./data/elastic-data:/usr/share/elasticsearch/data
+    profiles:
+      - services
+
+secrets:
+  DESKPRO_DB_PASS:
+    file: ./config/DESKPRO_DB_PASS.txt
+  MYSQL_ROOT_PASSWORD:
+    file: ./config/MYSQL_ROOT_PASSWORD.txt
+  DESKPRO_APP_KEY:
+    file: ./config/DESKPRO_APP_KEY.txt

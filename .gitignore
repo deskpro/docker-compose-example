@@ -1,0 +1,11 @@
+.env
+
+/config/*.env
+/config/*.txt
+
+/data/backups/*
+!/data/backups/README.txt
+
+/data/deskpro/logs
+/data/elastic-data
+/data/mysql-data
