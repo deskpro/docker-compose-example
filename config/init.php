@@ -100,6 +100,7 @@ EOT;
 
 	private function getDeskproImage(): string
 	{
+		return "docker.io/deskpro/deskpro-product:2023.34.0-onprem";
 		$versionManifest = @file_get_contents('https://get.deskpro.com/manifest.json');
 		$deskproImage = null;
 
