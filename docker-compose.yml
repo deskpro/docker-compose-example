@@ -1,20 +1,21 @@
 version: '3.8'
 services:
+#deskpro:init:begin
   #####################################################################
-  # Init - These are used when setting up the stack for the first time.
-  #        You can remove these services once done.
+  # Init - This is used when setting up the stack for the first time.
+  #        It generates default configuration files for you.
+  #        This section will be removed automatically after it is run.
   #####################################################################
 
-  # Usage: docker-compose run -it --rm init
-  init:
+  # Usage: docker-compose run -it --rm init_config_files
+  init_config_files:
     image: php:latest
-    #command: sh -c 'cp /project/config/init.php /tmp/init.php && rm /project/config/init.php && php /tmp/init.php /project'
-    command: sh -c 'cp /project/config/init.php /tmp/init.php && php /tmp/init.php /project'
+    command: sh -c 'cp /project/config/init_config_files.php /tmp/init_config_files.php && rm /project/config/init_config_files.php && php /tmp/init_config_files.php /project'
     volumes:
       - ./:/project
     profiles:
       - init
-
+#deskpro:init:end
   #####################################################################
   # Deskpro services
   #####################################################################
@@ -50,6 +51,7 @@ services:
       - config/config.env
     environment:
       - CONTAINER_NAME=tasks
+      - AUTO_RUN_MIGRATIONS=true
     secrets:
       - DESKPRO_DB_PASS
       - DESKPRO_APP_KEY
@@ -67,17 +69,17 @@ services:
   # Standard Deskpro tools and common commands
   #####################################################################
 
-  # Usage: docker-compose run -it --rm deskpro_bash
+  # Usage: docker-compose run -it --rm deskpro_cli
   #
   # Get a bash shell within the Deskpro environment. You can use this
   # to run CLI commands and other tools.
-  deskpro_bash:
+  deskpro_cli:
     image: ${DESKPRO_IMAGE:-scratch}
     env_file:
       - .env
       - config/config.env
     environment:
-      - CONTAINER_NAME=bash
+      - CONTAINER_NAME=cli
     secrets:
       - DESKPRO_DB_PASS
       - DESKPRO_APP_KEY
@@ -85,30 +87,6 @@ services:
       - ./data/deskpro:/deskpro
       - ./data/backups:/backups
     command: bash
-    depends_on:
-      - mysql
-      - elastic
-    profiles:
-      - tools
-
-  # Usage: docker-compose run -it --rm deskpro_run_migrations
-  #
-  # Whenever you update DPVERSION, you should run migrations
-  # to update your database to latest schema.
-  # (Always backup your database first!)
-  deskpro_run_migrations:
-    image: ${DESKPRO_IMAGE:-scratch}
-    env_file:
-      - .env
-      - config/config.env
-    environment:
-      - CONTAINER_NAME=migrations
-    secrets:
-      - DESKPRO_DB_PASS
-      - DESKPRO_APP_KEY
-    volumes:
-      - ./data/deskpro:/deskpro
-    command: exec tools/migrations/artisan migrations:exec -vvv --run
     depends_on:
       - mysql
       - elastic

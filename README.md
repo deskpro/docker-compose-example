@@ -9,7 +9,7 @@ https://support.deskpro.com/guides/topic/1841
 ---
 
 - [1.0. Getting started](#10-getting-started)
-  - [1.1. Run Init](#11-run-init)
+  - [1.1. Basic Configuration](#11-basic-configuration)
   - [1.2. Start MySQL and Elastic](#12-start-mysql-and-elastic)
   - [1.3. Run the installer](#13-run-the-installer)
   - [1.4. Start Deskpro](#14-start-deskpro)
@@ -26,28 +26,53 @@ https://support.deskpro.com/guides/topic/1841
 
 ## 1.1 Download the example project
 
-To use this example docker-compose project, either clone this repos:
-
-```
-git clone https://github.com/deskpro/docker-compose-example.git
-```
-
-Or download the source and extract it:
+Download the latest version and extract it:
 
 ```
 curl -L https://github.com/deskpro/docker-compose-example/archive/refs/heads/main.zip -o deskpro-compose.zip
 unzip deskpro-compose.zip
 ```
 
-## 1.2. Run Init
-
-The first thing you need to do is run the 'init' helper that will generate basic config for you:
+Or you can just clone the repos:
 
 ```
-docker-compose run -it --rm init
+git clone https://github.com/deskpro/docker-compose-example.git
 ```
 
-Optional: After running this once, you can edit docker-compose.yml to remove the "init" task from the top of the file.
+## 1.2. Basic Configuration
+
+### Automatically
+
+The simplest way to get started is to use the provided helper script to automatically generate the necessary secrets for you.
+
+You can run the helper via `docker-compose` like this:
+
+```
+docker-compose run -it --rm init_config_files
+```
+
+### Manually
+
+**1. Use the latest Deskpro image**
+
+Find the latest release from:
+https://hub.docker.com/r/deskpro/deskpro-product/tags?page=1&name=onprem
+
+Then edit the `.env` file and change the image to use the latest. For example:
+
+```
+# Replace the XXXX.XX.X with the latest published version
+DESKPRO_IMAGE=docker.io/deskpro/deskpro-product:XXXX.XX.X-onprem
+```
+
+**2. Secrets / Passwords**
+
+You need to modify these three files to set secrets:
+
+* `config/MYSQL_ROOT_PASSWORD.txt` - MySQL root password
+  * Example: ``
+* `config/DESKPRO_DB_PASS.txt` - MySQL user password used by the Deskpro database user
+* `config/DESKPRO_APP_KEY.txt` - A random 32-character string used for cryptographic functions
 
 ## 1.3. Start Services
 
@@ -67,12 +92,12 @@ When this succeeds, you can move on.
 
 ## 1.4. Run the installer
 
-You now need to initialize the database by running the installer.
+You now need to run the installer that will install the database and set up default options.
 
-First, open a bash shell:
+First, start a command line container:
 
 ```
-docker-compose run -it --rm deskpro_bash
+docker-compose run -it --rm deskpro_cli
 ```
 
 Once you are in, you can run the installer:
@@ -85,13 +110,13 @@ Note: If you already know you will be using other ports, HTTPS, or a domain name
 
 ## 1.5. Start Deskpro
 
-Finally, you can go ahead and start Deskpro itself:
+Finally, you can go ahead and start Deskpro itself by bringing up the other containers:
 
 ```
 docker-compose up -d
 ```
 
-When services have started, you can open http://127.0.0.1/app in your browser.
+When services have started, you can open http://127.0.0.1/app in your browser and log in using the credentials you provided when you ran the installer.
 
 ---
 
@@ -115,9 +140,9 @@ docker-compose restart deskpro_web
 
 If you want to run the web server on different ports, you need to configure port mapping.
 
-Edit the .env file (that exists in this same directory) and change the ports in the two variables at the top of the file.
+Edit the `.env` file and change the ports in the two variables at the top of the file.
 
-For example, if you wish to use http://127.0.0.1:8080/, then you would change HTTP_USER_SET_HTTP_PORT=8080
+For example, if you wish to use http://127.0.0.1:8080/, then you would change `HTTP_USER_SET_HTTP_PORT=8080`
 
 After you make these changes, restart the Deskpro web container:
 
@@ -147,24 +172,24 @@ https://hub.docker.com/r/deskpro/deskpro-product/tags?page=1&name=onprem
 Then you can pull that image to pre-cache it:
 
 ```
-docker image pull deskpro/deskpro-product:2023.33.1-onprem
+docker image pull deskpro/deskpro-product:2023.43.0-onprem
 ```
 
-This step just pre-downloads the image so the following steps finish faster This will ensure the image actually exists, and also reduces downtime for your users.
+This step just pre-downloads the image so the following steps finish faster. This will ensure the image actually exists, and also reduces downtime for your users.
 
-**Step 2: Change the container name in config**
+**Step 2: Change the image in config**
 
-Edit .env and change the DESKPRO_IMAGE variable to the new image.
+Edit the `.env` file and change the DESKPRO_IMAGE variable to the new image.
 
 For example:
 
 ```
-DESKPRO_IMAGE=deskpro/deskpro-product:2023.33.1-onprem
+DESKPRO_IMAGE=deskpro/deskpro-product:2023.43.0-onprem
 ```
 
 **Step 3: Stop Deskpro services**
 
-Stop Deskpro by running:
+Stop the currently-running Deskpro containers by running:
 
 ```
 docker-compose down deskpro_web deskpro_tasks
@@ -174,26 +199,54 @@ docker-compose down deskpro_web deskpro_tasks
 
 Before you run database migrations, you should make a database backup in case you need to revert to the previous version for whatever reason.
 
-The simplest way to do this is by exporting a full dump:
+The simplest way to do this is by exporting a full dump. There is a helper service defined in `docker-compose.yml` that will run a `mysqldump` command for you:
 
 ```
 docker-compose run -it --rm mysql_make_dump
 ```
 
-**Step 5: Run migrations**
+**Step 5: Restart Deskpro**
 
-When Deskpro has shut down, and you have made a backup, you can then run migrations to install any required database updates.
-
-```
-docker-compose run -it --rm deskpro_run_migrations
-```
-
-**Step 6: Start Deskpro services again**
-
-Finally, you can bring Deskpro back up:
+When Deskpro has shut down and you have made a backup, you can restart the Deskpro containers using the new image:
 
 ```
 docker-compose up -d
 ```
 
+If migrations need to run, then they will run automatically (via the `deskpro_tasks` container). Note that the web interface won't be usable until migrations finish running.
 
+**Troubleshooting**
+
+If you've upgraded and the Deskpro web interface stays disabled, it usually means that migrations are still running. You just need to wait a few minutes for migrations to finish running in the background.
+
+You can review the docker logs for the container if you want to get a clearer picture of what is going on:
+
+```
+docker-compose logs -f deskpro_tasks
+```
+
+From the logs, you will be able to see what is currently running (i.e. a specific migration step), or any errors or problems that might have happened during the upgrade procedure.
+
+## 3.1 Manually running migrations
+
+If you prefer to manually run migrations instead of having them run automatically, there are two steps:
+
+**1. Disable auto-migrations in config**
+
+In your `docker-compose.yml` file, _remove_ the line `AUTO_RUN_MIGRATIONS=true` that exists under the `deskpro_tasks` service.
+
+**2. Manually run the migrations command**
+
+When you update the `DESKPRO_IMAGE` version as described above, you will then also need to manually run the migrations command.
+
+First, start a command line container:
+
+```
+docker-compose run -it --rm deskpro_cli
+```
+
+Once you are in, you can run migrations like this:
+
+```
+./tools/migrations/artisan migrations:exec -vvv --run
+```

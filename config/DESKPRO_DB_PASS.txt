@@ -1,0 +1,1 @@
+Edit this file to contain the MySQL password for the 'deskpro' user. (Beware: Make sure your editor does not add a new line to the end of this file.)
