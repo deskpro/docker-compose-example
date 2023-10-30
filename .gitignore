@@ -1,11 +1,11 @@
-.env
-
-/config/*.env
-/config/*.txt
+/config/DESKPRO_DB_PASS.txt
+/config/MYSQL_ROOT_PASSWORD.txt
+/config/DESKPRO_APP_KEY.txt
 
 /data/backups/*
 !/data/backups/README.txt
 
-/data/deskpro/logs
+/data/deskpro/logs/*
+!/data/deskpro/logs/README.txt
 /data/elastic-data
 /data/mysql-data
