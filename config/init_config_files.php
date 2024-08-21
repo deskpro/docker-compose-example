@@ -49,9 +49,9 @@ final class init_config_files
 			$didSkipAny = true;
 		}
 
-		$dockerComposeFile = "$projectPath/docker-compose.yml";
+		$dockerComposeFile = "{$this->projectPath}/docker-compose.yml";
 		if (file_exists($dockerComposeFile)) {
-			echo "Removing init_config_files from docker-compose.yml ... "
+			echo "Removing init_config_files from docker-compose.yml ... ";
 			$content = file_get_contents($dockerComposeFile);
 			$content = preg_replace('/#deskpro:init:begin.*?#deskpro:init:end/s', '', $content);
 			echo "OK\n";
